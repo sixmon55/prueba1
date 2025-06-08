@@ -17,6 +17,7 @@ def pantalla_arrepentimiento():
         connection = get_connection()
         cursor = connection.cursor()
 
+        # Consulta las ventas del cliente según su email
         query = """
         SELECT v.id_venta, c.email, v.id_destino, he.fecha, ev.nombre 
         FROM VENTA v
@@ -29,11 +30,13 @@ def pantalla_arrepentimiento():
         cursor.execute(query, (email,))
         ventas = cursor.fetchall()
 
+        # Si no hay ventas, mostrar mensaje y solicitar nuevamente el email
         if not ventas:
             print("No se encontraron ventas asociadas a este cliente.")
-            menu_inicio()
+            pantalla_arrepentimiento()
             return
 
+        # Agrupa las ventas para mostrar una sola por ID
         ventas_dict = {}
         for v in ventas:
             id_venta = v[0]
@@ -61,6 +64,7 @@ def pantalla_arrepentimiento():
         estado_actual = venta_seleccionada["estado"]
         fecha_estado = venta_seleccionada["fecha_estado"]
 
+        # Si el estado es pendiente y dentro del plazo de 5 minutos, permite cancelar
         if estado_actual.lower() == "pendiente":
             tiempo_actual = datetime.now()
             tiempo_estado = datetime.combine(fecha_estado, datetime.min.time())
