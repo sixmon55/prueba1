@@ -22,7 +22,12 @@ def pantalla_arrepentimiento():
         SELECT v.id_venta, c.email, v.id_destino, he.fecha, ev.nombre 
         FROM VENTA v
         INNER JOIN CLIENTE c ON v.id_cliente = c.id_cliente
-        INNER JOIN HISTORIAL_ESTADOVENTA he ON v.id_venta = he.id_venta
+        INNER JOIN (
+            SELECT id_venta, MAX(fecha) AS fecha
+            FROM HISTORIAL_ESTADOVENTA
+            GROUP BY id_venta
+        ) ult_he ON v.id_venta = ult_he.id_venta
+        INNER JOIN HISTORIAL_ESTADOVENTA he ON v.id_venta = he.id_venta AND he.fecha = ult_he.fecha
         INNER JOIN ESTADO_VENTA ev ON he.id_estado = ev.id_estado
         WHERE c.email = %s
         ORDER BY he.fecha DESC
@@ -41,11 +46,15 @@ def pantalla_arrepentimiento():
         for v in ventas:
             id_venta = v[0]
             if id_venta not in ventas_dict:
+                estado = v[4]
+                fecha_estado = v[3]
+                if estado.lower() == "pendiente" and datetime.now() - fecha_estado > timedelta(minutes=5):
+                    estado = "Completado"
                 ventas_dict[id_venta] = {
                     "email": v[1],
                     "id_destino": v[2],
-                    "fecha_estado": v[3],
-                    "estado": v[4]
+                    "fecha_estado": fecha_estado,
+                    "estado": estado
                 }
 
         print("\nVentas encontradas:")
@@ -67,8 +76,7 @@ def pantalla_arrepentimiento():
         # Si el estado es pendiente y dentro del plazo de 5 minutos, permite cancelar
         if estado_actual.lower() == "pendiente":
             tiempo_actual = datetime.now()
-            tiempo_estado = datetime.combine(fecha_estado, datetime.min.time())
-            diferencia = tiempo_actual - tiempo_estado
+            diferencia = tiempo_actual - fecha_estado
 
             if diferencia <= timedelta(minutes=5):
                 print("\n¿Está usted seguro? Si continúa, su venta será cancelada.")
