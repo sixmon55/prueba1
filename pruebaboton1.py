@@ -48,7 +48,6 @@ def pantalla_arrepentimiento():
             if id_venta not in ventas_dict:
                 estado = v[4]
                 fecha_estado = v[3]
-                # 🔽 Eliminado: no modificar artificialmente el estado según la fecha
                 ventas_dict[id_venta] = {
                     "email": v[1],
                     "id_destino": v[2],
