@@ -1,7 +1,6 @@
 from datetime import datetime
 from conexion import get_connection
 
-
 def menu_ventas(menu_inicio):
     while True:
         print("\n--- Gestión de Ventas ---")
@@ -129,7 +128,7 @@ def consultar_ventas_cliente():
     print(f"\nVentas del cliente: {razon_social}")
 
     cursor.execute("""
-        SELECT V.id_venta, C.nombre, P.nombre, D.costo_base, HV.fecha
+        SELECT V.id_venta, C.nombre, P.nombre, D.costo_base, HV.fecha, HV.id_estado
         FROM VENTA V
         JOIN DESTINO D ON V.id_destino = D.id_destino
         JOIN CIUDAD C ON D.id_ciudad = C.id_ciudad
@@ -151,9 +150,19 @@ def consultar_ventas_cliente():
         return
 
     for venta in ventas:
-        id_venta, ciudad, pais, costo, fecha = venta
-        minutos_transcurridos = (datetime.now() - fecha).total_seconds() / 60
-        estado = "Pendiente" if minutos_transcurridos <= 5 else "Completado"
+        id_venta, ciudad, pais, costo, fecha, id_estado = venta
+
+        if id_estado == 3:
+            estado = "Anulado"
+        elif id_estado == 1:
+            if (datetime.now() - fecha).total_seconds() / 60 <= 5:
+                estado = "Pendiente"
+            else:
+                estado = "Completado"
+        elif id_estado == 2:
+            estado = "Completado"
+        else:
+            estado = f"Estado desconocido ({id_estado})"
 
         print(f"\nID Venta: {id_venta}")
         print(f"Destino: {ciudad}, {pais}")
@@ -166,7 +175,7 @@ def informe_ventas():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT V.id_venta, CL.razon_social, C.nombre, P.nombre, D.costo_base, HV.fecha
+        SELECT V.id_venta, CL.razon_social, C.nombre, P.nombre, D.costo_base, HV.fecha, HV.id_estado
         FROM VENTA V
         JOIN CLIENTE CL ON V.id_cliente = CL.id_cliente
         JOIN DESTINO D ON V.id_destino = D.id_destino
@@ -178,7 +187,7 @@ def informe_ventas():
             GROUP BY id_venta
         ) ult_estado ON V.id_venta = ult_estado.id_venta
         JOIN HISTORIAL_ESTADOVENTA HV ON HV.id_venta = ult_estado.id_venta AND HV.fecha = ult_estado.max_fecha
-        ORDER BY V.id_venta DESC  -- ✅ Orden descendente por ID
+        ORDER BY V.id_venta DESC
     """)
     ventas = cursor.fetchall()
 
@@ -188,9 +197,13 @@ def informe_ventas():
 
     print("\n--- Informe de todas las ventas ---")
     for venta in ventas:
-        id_venta, cliente, ciudad, pais, costo, fecha = venta
-        minutos_transcurridos = (datetime.now() - fecha).total_seconds() / 60
-        estado = "Pendiente" if minutos_transcurridos <= 5 else "Completado"
+        id_venta, cliente, ciudad, pais, costo, fecha, id_estado = venta
+        if id_estado == 3:
+            estado = "Anulado"
+        elif id_estado == 1 and (datetime.now() - fecha).total_seconds() / 60 <= 5:
+            estado = "Pendiente"
+        else:
+            estado = "Completado"
 
         print(f"\nID Venta: {id_venta}")
         print(f"Cliente: {cliente}")
