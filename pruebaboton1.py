@@ -48,6 +48,8 @@ def pantalla_arrepentimiento():
             if id_venta not in ventas_dict:
                 estado = v[4]
                 fecha_estado = v[3]
+                if estado.lower() == "pendiente" and datetime.now() - fecha_estado > timedelta(minutes=5):
+                    estado = "Completado"
                 ventas_dict[id_venta] = {
                     "email": v[1],
                     "id_destino": v[2],
