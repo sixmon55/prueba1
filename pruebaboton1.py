@@ -35,26 +35,34 @@ def pantalla_arrepentimiento():
         cursor.execute(query, (email,))
         ventas = cursor.fetchall()
 
-        # Si no hay ventas, mostrar mensaje y solicitar nuevamente el email
         if not ventas:
             print("No se encontraron ventas asociadas a este cliente.")
             pantalla_arrepentimiento()
             return
 
-        # Agrupa las ventas para mostrar una sola por ID
         ventas_dict = {}
         for v in ventas:
             id_venta = v[0]
             if id_venta not in ventas_dict:
-                estado = v[4]
+                estado_original = v[4]
                 fecha_estado = v[3]
-                if estado.lower() == "pendiente" and datetime.now() - fecha_estado > timedelta(minutes=5):
-                    estado = "Completado"
+
+                # Ajustar estado mostrado según el tiempo transcurrido
+                if estado_original.lower() == "pendiente":
+                    diferencia = datetime.now() - fecha_estado
+                    if diferencia > timedelta(minutes=5):
+                        estado_mostrado = "Completado"
+                    else:
+                        estado_mostrado = "Pendiente"
+                else:
+                    estado_mostrado = estado_original
+
                 ventas_dict[id_venta] = {
                     "email": v[1],
                     "id_destino": v[2],
                     "fecha_estado": fecha_estado,
-                    "estado": estado
+                    "estado": estado_mostrado,
+                    "estado_original": estado_original  # mantenemos el original para lógica interna
                 }
 
         print("\nVentas encontradas:")
@@ -70,35 +78,32 @@ def pantalla_arrepentimiento():
         id_venta_seleccionada = list(ventas_dict.keys())[seleccion - 1]
         venta_seleccionada = ventas_dict[id_venta_seleccionada]
 
-        estado_actual = venta_seleccionada["estado"]
+        estado_actual = venta_seleccionada["estado_original"]
         fecha_estado = venta_seleccionada["fecha_estado"]
+        tiempo_actual = datetime.now()
+        diferencia = tiempo_actual - fecha_estado
 
-        # Si el estado es pendiente y dentro del plazo de 5 minutos, permite cancelar
-        if estado_actual.lower() == "pendiente":
-            tiempo_actual = datetime.now()
-            diferencia = tiempo_actual - fecha_estado
+        if estado_actual.lower() == "pendiente" and diferencia <= timedelta(minutes=5):
+            print("\n¿Está usted seguro? Si continúa, su venta será cancelada.")
+            print("1 - Continuar con la cancelación")
+            print("2 - Cancelar y volver")
 
-            if diferencia <= timedelta(minutes=5):
-                print("\n¿Está usted seguro? Si continúa, su venta será cancelada.")
-                print("1 - Continuar con la cancelación")
-                print("2 - Cancelar y volver")
+            opcion = input("Ingrese una opción: ")
 
-                opcion = input("Ingrese una opción: ")
-
-                if opcion == "1":
-                    update_query = """
-                    INSERT INTO HISTORIAL_ESTADOVENTA (id_venta, id_estado, fecha)
-                    VALUES (%s, %s, NOW())
-                    """
-                    cursor.execute(update_query, (id_venta_seleccionada, 3))
-                    connection.commit()
-                    print("La venta ha sido cancelada exitosamente.")
-                    menu_inicio()
-                    return
-                else:
-                    print("Operación cancelada por el usuario.")
-                    menu_inicio()
-                    return
+            if opcion == "1":
+                update_query = """
+                INSERT INTO HISTORIAL_ESTADOVENTA (id_venta, id_estado, fecha)
+                VALUES (%s, %s, NOW())
+                """
+                cursor.execute(update_query, (id_venta_seleccionada, 3))  # Estado 3 = Anulado
+                connection.commit()
+                print("La venta ha sido cancelada exitosamente.")
+                menu_inicio()
+                return
+            else:
+                print("Operación cancelada por el usuario.")
+                menu_inicio()
+                return
         else:
             print("\nUsted ha sobrepasado el tiempo estipulado para cancelación/arrepentimiento.")
             print("Por favor, comuníquese con la compañía para gestionar un cambio.")
